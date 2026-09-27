@@ -1,0 +1,1349 @@
+import { useEffect, useState } from "react";
+import "./OrganizerDashboard.css";
+
+function OrganizerDashboard() {
+
+  const user = JSON.parse(localStorage.getItem("user"));
+
+  const [events, setEvents] = useState([]);
+
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    location: "",
+    latitude: "",
+    longitude: "",
+    event_date: "",
+    start_time: "",
+    end_time: ""
+  });
+
+  const [message, setMessage] = useState("");
+
+  const [activeSection, setActiveSection] = useState("dashboard");
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+  const [notifications, setNotifications] = useState([
+    {
+      id: 1,
+      title: "New connection request",
+      text: "A professional has sent you a connection request.",
+      unread: true
+    },
+    {
+      id: 2,
+      title: "Event reminder",
+      text: "Tech Summit 2026 is coming up soon.",
+      unread: true
+    },
+    {
+      id: 3,
+      title: "Payment update",
+      text: "A payment status has been updated.",
+      unread: true
+    },
+    {
+      id: 4,
+      title: "New professional",
+      text: "A new professional matches your requirements.",
+      unread: true
+    }
+  ]);
+
+  const titles = {
+    dashboard: "Organizer Dashboard",
+    profile: "Organizer Profile",
+    createEvent: "Create New Event",
+    events: "My Events",
+    organizers: "Find Organizers",
+    workers: "Find Professionals",
+    requests: "Connection Requests",
+    connections: "My Connections",
+    team: "Manage Event Team",
+    chat: "Messages",
+    attendance: "Worker Attendance",
+    payments: "Payments"
+  };
+
+  const showSection = (section) => {
+    setActiveSection(section);
+    setNotificationsOpen(false);
+    setMessage("");
+  };
+
+  const handleConnect = (name) => {
+    setMessage(`Connection request sent to ${name}`);
+  };
+
+  const handleViewProfile = (name) => {
+    setMessage(`Opening profile of ${name}`);
+  };
+
+  const fetchEvents = async () => {
+    if (!user?.id) {
+      setMessage("Organizer login information not found");
+      return;
+    }
+  
+    try {
+      const response = await fetch(
+        `http://localhost:5500/api/events/organizer/${user.id}`
+      );
+  
+      const data = await response.json();
+  
+      if (response.ok) {
+        setEvents(data);
+      } else {
+        setMessage(data.message || "Unable to load events");
+      }
+    } catch (error) {
+      console.error("Fetch Events Error:", error);
+      setMessage("Unable to connect to server");
+    }
+  };
+  
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+  
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+  
+    setFormData((previous) => ({
+      ...previous,
+      [name]: value
+    }));
+  };
+  
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+  
+    if (!user?.id) {
+      setMessage("Organizer login information not found");
+      return;
+    }
+  
+    try {
+      const response = await fetch("http://localhost:5500/api/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          organizer_id: user.id,
+          ...formData
+        })
+      });
+  
+      const data = await response.json();
+  
+      if (response.ok) {
+        setMessage("Event created successfully!");
+  
+        setFormData({
+          title: "",
+          description: "",
+          location: "",
+          latitude: "",
+          longitude: "",
+          event_date: "",
+          start_time: "",
+          end_time: ""
+        });
+  
+        fetchEvents();
+      } else {
+        setMessage(data.message || "Unable to create event");
+      }
+    } catch (error) {
+      console.error("Create Event Error:", error);
+      setMessage("Unable to connect to server");
+    }
+  };
+  
+  const getEventLocation = () => {
+    if (!navigator.geolocation) {
+      setMessage("Geolocation is not supported by this browser");
+      return;
+    }
+  
+    setMessage("Getting location...");
+  
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setFormData((previous) => ({
+          ...previous,
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        }));
+  
+        setMessage("Location detected successfully");
+      },
+      (error) => {
+        console.error("Location Error:", error);
+        setMessage("Unable to get current location");
+      }
+    );
+  };
+
+  const markAllRead = () => {
+    setNotifications(
+      notifications.map((notification) => ({
+        ...notification,
+        unread: false
+      }))
+    );
+  };
+
+  const unreadCount = notifications.filter(
+    (notification) => notification.unread
+  ).length;
+
+  return (
+    <div className="crew-layout">
+
+      {/* ================= SIDEBAR ================= */}
+
+      <aside className="crew-sidebar">
+
+        {/* Logo */}
+
+        <div className="crew-logo">
+          <div className="crew-logo-icon">C</div>
+          <span>CrewAura</span>
+        </div>
+
+        {/* Navigation */}
+
+        <nav className="crew-nav">
+
+          <button
+            className={`crew-nav-item ${
+              activeSection === "dashboard" ? "active" : ""
+            }`}
+            onClick={() => showSection("dashboard")}
+          >
+            <span className="nav-icon">▣</span>
+            <span className="nav-label">Dashboard</span>
+          </button>
+
+          <button
+            className={`crew-nav-item ${
+              activeSection === "profile" ? "active" : ""
+            }`}
+            onClick={() => showSection("profile")}
+          >
+            <span className="nav-icon">♙</span>
+            <span className="nav-label">My Profile</span>
+          </button>
+
+          <button
+            className={`crew-nav-item ${
+              activeSection === "createEvent" ? "active" : ""
+            }`}
+            onClick={() => showSection("createEvent")}
+          >
+            <span className="nav-icon">＋</span>
+            <span className="nav-label">Create Event</span>
+          </button>
+
+          <button
+            className={`crew-nav-item ${
+              activeSection === "events" ? "active" : ""
+            }`}
+            onClick={() => showSection("events")}
+          >
+            <span className="nav-icon">▤</span>
+            <span className="nav-label">My Events</span>
+          </button>
+
+          <div className="crew-menu-title">
+            Connections
+          </div>
+
+          <button
+            className={`crew-nav-item ${
+              activeSection === "organizers" ? "active" : ""
+            }`}
+            onClick={() => showSection("organizers")}
+          >
+            <span className="nav-icon">⌕</span>
+            <span className="nav-label">Find Organizers</span>
+          </button>
+
+          <button
+            className={`crew-nav-item ${
+              activeSection === "workers" ? "active" : ""
+            }`}
+            onClick={() => showSection("workers")}
+          >
+            <span className="nav-icon">♙</span>
+            <span className="nav-label">Find Professionals</span>
+          </button>
+
+          <button
+            className={`crew-nav-item ${
+              activeSection === "requests" ? "active" : ""
+            }`}
+            onClick={() => showSection("requests")}
+          >
+            <span className="nav-icon">↔</span>
+            <span className="nav-label">
+              Connection Requests
+            </span>
+          </button>
+
+          <button
+            className={`crew-nav-item ${
+              activeSection === "connections" ? "active" : ""
+            }`}
+            onClick={() => showSection("connections")}
+          >
+            <span className="nav-icon">♧</span>
+            <span className="nav-label">
+              My Connections
+            </span>
+          </button>
+
+          <div className="crew-menu-title">
+            Event Management
+          </div>
+
+          <button
+            className={`crew-nav-item ${
+              activeSection === "team" ? "active" : ""
+            }`}
+            onClick={() => showSection("team")}
+          >
+            <span className="nav-icon">♟</span>
+            <span className="nav-label">Selected Team</span>
+          </button>
+
+          <button
+            className={`crew-nav-item ${
+              activeSection === "chat" ? "active" : ""
+            }`}
+            onClick={() => showSection("chat")}
+          >
+            <span className="nav-icon">▱</span>
+            <span className="nav-label">Messages</span>
+          </button>
+
+          <button
+            className={`crew-nav-item ${
+              activeSection === "attendance" ? "active" : ""
+            }`}
+            onClick={() => showSection("attendance")}
+          >
+            <span className="nav-icon">✓</span>
+            <span className="nav-label">Attendance</span>
+          </button>
+
+          <button
+            className={`crew-nav-item ${
+              activeSection === "payments" ? "active" : ""
+            }`}
+            onClick={() => showSection("payments")}
+          >
+            <span className="nav-icon">₹</span>
+            <span className="nav-label">Payments</span>
+          </button>
+
+        </nav>
+
+        {/* Organizer */}
+
+        <div className="crew-sidebar-profile">
+
+          <div className="crew-profile-avatar">
+            PS
+          </div>
+
+          <div className="crew-profile-text">
+            <strong>Priya Sharma</strong>
+            <span>Event Organizer</span>
+          </div>
+
+        </div>
+        
+
+      </aside>
+
+      {/* ================= MAIN AREA ================= */}
+
+      <main className="crew-main">
+
+        {/* TOPBAR */}
+
+        <header className="crew-topbar">
+
+          <div className="crew-page-heading">
+            <h1>{titles[activeSection]}</h1>
+            <p>
+              Manage your events, connections and workforce
+            </p>
+          </div>
+
+          <div className="crew-notification-wrapper">
+
+            <button
+              className="crew-notification-button"
+              onClick={() =>
+                setNotificationsOpen(!notificationsOpen)
+              }
+            >
+              <span className="notification-icon">
+                ♧
+              </span>
+
+              {unreadCount > 0 && (
+                <span className="notification-count">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+
+            {notificationsOpen && (
+              <div className="crew-notification-panel">
+
+                <div className="notification-panel-header">
+                  <strong>Notifications</strong>
+
+                  <button onClick={markAllRead}>
+                    Mark all as read
+                  </button>
+                </div>
+
+                {notifications.map((notification) => (
+                  <div
+                    key={notification.id}
+                    className={`crew-notification-item ${
+                      notification.unread ? "unread" : ""
+                    }`}
+                  >
+                    <div className="notification-item-dot"></div>
+
+                    <div>
+                      <strong>
+                        {notification.title}
+                      </strong>
+
+                      <p>
+                        {notification.text}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+
+              </div>
+            )}
+
+          </div>
+
+        </header>
+
+        {/* ================= CONTENT ================= */}
+
+        <div className="crew-content">
+
+          {/* ================= DASHBOARD ================= */}
+
+          {activeSection === "dashboard" && (
+            <section className="crew-section">
+
+              <div className="crew-stats-grid">
+
+                <div className="crew-stat-card">
+                  <div className="crew-stat-icon">
+                    ▤
+                  </div>
+
+                  <div>
+                    <span>Total Events</span>
+                    <strong>24</strong>
+                  </div>
+                </div>
+
+                <div className="crew-stat-card">
+                  <div className="crew-stat-icon">
+                    ♧
+                  </div>
+
+                  <div>
+                    <span>Connected People</span>
+                    <strong>0</strong>
+                  </div>
+                </div>
+
+                <div className="crew-stat-card">
+                  <div className="crew-stat-icon">
+                    ◉
+                  </div>
+
+                  <div>
+                    <span>Active Events</span>
+                    <strong>5</strong>
+                  </div>
+                </div>
+
+                <div className="crew-stat-card">
+                  <div className="crew-stat-icon">
+                    ₹
+                  </div>
+
+                  <div>
+                    <span>Total Budget</span>
+                    <strong>₹8.4L</strong>
+                  </div>
+                </div>
+
+              </div>
+
+              <div className="crew-section-heading">
+                <h2>Upcoming Events</h2>
+
+                <button
+                  className="crew-primary-button"
+                  onClick={() =>
+                    showSection("createEvent")
+                  }
+                >
+                  + Create Event
+                </button>
+              </div>
+
+              <div className="crew-event-grid">
+
+                <div className="crew-event-card">
+
+                  <div className="event-card-status">
+                    Active
+                  </div>
+
+                  <h3>Tech Summit 2026</h3>
+
+                  <div className="event-info">
+                    <span>📍 Bhopal</span>
+                    <span>📅 28 September 2026</span>
+                    <span>👥 85 Workers</span>
+                  </div>
+
+                  <button
+                    className="crew-outline-button"
+                    onClick={() =>
+                      showSection("events")
+                    }
+                  >
+                    View Event
+                  </button>
+
+                </div>
+
+                <div className="crew-event-card">
+
+                  <div className="event-card-status">
+                    Active
+                  </div>
+
+                  <h3>Grand Wedding</h3>
+
+                  <div className="event-info">
+                    <span>📍 Indore</span>
+                    <span>📅 30 September 2026</span>
+                    <span>👥 52 Workers</span>
+                  </div>
+
+                  <button
+                    className="crew-outline-button"
+                    onClick={() =>
+                      showSection("events")
+                    }
+                  >
+                    View Event
+                  </button>
+
+                </div>
+
+                <div className="crew-event-card">
+
+                  <div className="event-card-status">
+                    Active
+                  </div>
+
+                  <h3>Corporate Leadership Meet</h3>
+
+                  <div className="event-info">
+                    <span>📍 Bhopal</span>
+                    <span>📅 05 October 2026</span>
+                    <span>👥 40 Workers</span>
+                  </div>
+
+                  <button
+                    className="crew-outline-button"
+                    onClick={() =>
+                      showSection("events")
+                    }
+                  >
+                    View Event
+                  </button>
+
+                </div>
+
+              </div>
+
+            </section>
+          )}
+
+          {/* ================= PROFILE ================= */}
+          {activeSection === "profile" && (
+  <section className="crew-section">
+
+    <div className="crew-profile-layout">
+
+      <div className="crew-profile-card">
+
+        <div className="crew-large-avatar">
+          {user?.name
+            ? user.name
+                .split(" ")
+                .map((word) => word[0])
+                .join("")
+                .toUpperCase()
+            : "OR"}
+        </div>
+
+        <h2>{user?.name || "Organizer"}</h2>
+
+        <p>
+          Professional Event Organizer
+        </p>
+
+        <span className="crew-verified">
+          ✓ Aadhaar Verified
+        </span>
+
+      </div>
+
+      <div className="crew-profile-information">
+
+        <div className="crew-info-row">
+          <span>Phone</span>
+          <strong>+91 XXXXX XXXXX</strong>
+        </div>
+
+        <div className="crew-info-row">
+          <span>Email</span>
+          <strong>
+            {user?.email || "organizer@example.com"}
+          </strong>
+        </div>
+
+        <div className="crew-info-row">
+          <span>Aadhaar</span>
+          <strong>
+            XXXX XXXX 1234
+          </strong>
+        </div>
+
+        <div className="crew-info-row">
+          <span>Address</span>
+          <strong>
+            Bhopal, Madhya Pradesh
+          </strong>
+        </div>
+
+        <div className="crew-info-row">
+          <span>Organization</span>
+          <strong>
+            CrewAura Events
+          </strong>
+        </div>
+
+      </div>
+
+    </div>
+
+  
+
+              <div className="crew-form-card">
+
+                <h2>Organization Information</h2>
+
+                <div className="crew-form-grid">
+
+                  <div className="crew-form-group">
+                    <label>Organization Name</label>
+                    <input
+                      type="text"
+                      value="CrewAura Events"
+                      readOnly
+                    />
+                  </div>
+
+                  <div className="crew-form-group">
+                    <label>Organization Type</label>
+                    <input
+                      type="text"
+                      value="Event Management"
+                      readOnly
+                    />
+                  </div>
+
+                </div>
+
+              </div>
+
+            </section>
+          )}
+
+          {/* ================= CREATE EVENT ================= */}
+
+          {activeSection === "createEvent" && (
+            <section className="crew-section">
+
+              <div className="crew-form-card">
+
+                <h2>Create New Event</h2>
+                <form onSubmit={handleSubmit}>
+
+                <div className="crew-form-grid">
+
+                  <div className="crew-form-group">
+                    <label>Event Title</label>
+                    <input
+                        type="text"
+                        name="title"
+                        value={formData.title}
+                        onChange={handleChange}
+                      placeholder="Enter event title"
+                     />
+                  </div>
+
+                  <div className="crew-form-group">
+                    <label>Event Type</label>
+
+                    <select>
+                      <option>Select Event Type</option>
+                      <option>Conference</option>
+                      <option>Exhibition</option>
+                      <option>Wedding</option>
+                      <option>Corporate Event</option>
+                      <option>Concert</option>
+                      <option>Sports Tournament</option>
+                      <option>Cultural Festival</option>
+                    </select>
+                  </div>
+
+                  <div className="crew-form-group">
+                    <label>Start Date</label>
+
+                    <input
+  type="date"
+  name="event_date"
+  value={formData.event_date}
+  onChange={handleChange}
+/>
+                  </div>
+
+                  <div className="crew-form-group">
+                    <label>Location</label>
+
+                    <input
+  type="text"
+  name="location"
+  value={formData.location}
+  onChange={handleChange}
+  placeholder="Enter event location"
+/>
+                  </div>
+
+                  <div className="crew-form-group">
+                    <label>Expected Guests</label>
+
+                    <input
+                      type="number"
+                      placeholder="Number of guests"
+                    />
+                  </div>
+
+                  <div className="crew-form-group">
+                    <label>Budget</label>
+
+                    <input
+                      type="text"
+                      placeholder="₹ Enter budget"
+                    />
+                  </div>
+
+                </div>
+
+                <div className="crew-form-group crew-full-width">
+
+                  <label>Event Description</label>
+
+                 <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              placeholder="Describe your event..."
+               rows="6"
+              ></textarea>
+
+                </div>
+
+                <button className="crew-primary-button">
+                  Create Event
+                </button>
+                </form>
+              </div>
+
+            </section>
+          )}
+
+          {/* ================= MY EVENTS ================= */}
+
+          {activeSection === "events" && (
+            <section className="crew-section">
+
+              <div className="crew-section-heading">
+                <h2>My Events</h2>
+
+                <button
+                  className="crew-primary-button"
+                  onClick={() =>
+                    showSection("createEvent")
+                  }
+                >
+                  + Create Event
+                </button>
+              </div>
+
+              <div className="crew-event-grid">
+
+                <div className="crew-event-card">
+                  <div className="event-card-status">
+                    Active
+                  </div>
+
+                  <h3>Tech Summit 2026</h3>
+
+                  <div className="event-info">
+                    <span>📍 Bhopal</span>
+                    <span>📅 28 September 2026</span>
+                    <span>👥 85 Workers</span>
+                  </div>
+                </div>
+
+                <div className="crew-event-card">
+                  <div className="event-card-status">
+                    Active
+                  </div>
+
+                  <h3>Grand Wedding</h3>
+
+                  <div className="event-info">
+                    <span>📍 Indore</span>
+                    <span>📅 30 September 2026</span>
+                    <span>👥 52 Workers</span>
+                  </div>
+                </div>
+
+                <div className="crew-event-card">
+                  <div className="event-card-status">
+                    Upcoming
+                  </div>
+
+                  <h3>Corporate Leadership Meet</h3>
+
+                  <div className="event-info">
+                    <span>📍 Bhopal</span>
+                    <span>📅 05 October 2026</span>
+                    <span>👥 40 Workers</span>
+                  </div>
+                </div>
+
+              </div>
+
+            </section>
+          )}
+
+          {/* ================= FIND ORGANIZERS ================= */}
+
+          {activeSection === "organizers" && (
+            <section className="crew-section">
+
+              <div className="crew-section-heading">
+                <div>
+                  <h2>Find Organizers</h2>
+                  <p>
+                    Connect with event organizers.
+                  </p>
+                </div>
+              </div>
+
+              <div className="crew-people-grid">
+
+                <div className="crew-person-card">
+                  <div className="crew-person-avatar">
+                    RS
+                  </div>
+
+                  <h3>Rahul Sharma</h3>
+                  <p>Event Organizer</p>
+                  <span>📍 Bhopal</span>
+
+                  <button
+                    className="crew-primary-button"
+                    onClick={() => handleConnect("Rahul Sharma")}
+                  >
+                    Connect
+                  </button>
+                </div>
+
+                <div className="crew-person-card">
+                  <div className="crew-person-avatar">
+                    AM
+                  </div>
+
+                  <h3>Ankit Mehta</h3>
+                  <p>Event Manager</p>
+                  <span>📍 Indore</span>
+
+                  <button
+                    className="crew-primary-button"
+                    onClick={() => handleConnect("Ankit Mehta")}
+                  >
+                    Connect
+                  </button>
+                </div>
+
+              </div>
+
+            </section>
+          )}
+
+          {/* ================= PROFESSIONALS ================= */}
+
+          {activeSection === "workers" && (
+            <section className="crew-section">
+
+              <div className="crew-section-heading">
+                <div>
+                  <h2>Find Professionals</h2>
+                  <p>
+                    Find verified professionals for your events.
+                  </p>
+                </div>
+              </div>
+
+              <div className="crew-people-grid">
+
+                <div className="crew-person-card">
+
+                  <div className="crew-person-avatar">
+                    AR
+                  </div>
+
+                  <h3>Aarav Rao</h3>
+
+                  <p>
+                    Event Coordinator
+                  </p>
+
+                  <span>
+                    📍 Bhopal
+                  </span>
+
+                  <div className="crew-rating">
+                    ★ 4.8
+                  </div>
+
+                  <button
+                    className="crew-primary-button"
+                    onClick={() => handleViewProfile("Aarav Rao")}
+                  >
+                    View Profile
+                  </button>
+
+                </div>
+
+                <div className="crew-person-card">
+
+                  <div className="crew-person-avatar">
+                    NS
+                  </div>
+
+                  <h3>Neha Singh</h3>
+
+                  <p>
+                    Hospitality Professional
+                  </p>
+
+                  <span>
+                    📍 Indore
+                  </span>
+
+                  <div className="crew-rating">
+                    ★ 4.7
+                  </div>
+
+                  <button
+                    className="crew-primary-button"
+                    onClick={() => handleViewProfile("Neha Singh")}
+                  >
+                    View Profile
+                  </button>
+
+                </div>
+
+                <div className="crew-person-card">
+
+                  <div className="crew-person-avatar">
+                    RV
+                  </div>
+
+                  <h3>Rahul Verma</h3>
+
+                  <p>
+                    AV Technician
+                  </p>
+
+                  <span>
+                    📍 Bhopal
+                  </span>
+
+                  <div className="crew-rating">
+                    ★ 4.9
+                  </div>
+
+                  <button
+                    className="crew-primary-button"
+                    onClick={() => handleViewProfile("Rahul Verma")}
+                  >
+                    View Profile
+                  </button>
+
+                </div>
+
+              </div>
+
+            </section>
+          )}
+
+          {/* ================= REQUESTS ================= */}
+
+          {activeSection === "requests" && (
+            <section className="crew-section">
+
+              <div className="crew-section-heading">
+                <h2>Connection Requests</h2>
+              </div>
+
+              <div className="crew-empty-state">
+
+                <div className="empty-icon">
+                  ♧
+                </div>
+
+                <h3>No connection requests</h3>
+
+                <p>
+                  New connection requests will appear here.
+                </p>
+
+              </div>
+
+            </section>
+          )}
+
+          {/* ================= CONNECTIONS ================= */}
+
+          {activeSection === "connections" && (
+            <section className="crew-section">
+
+              <div className="crew-section-heading">
+                <h2>My Connections</h2>
+              </div>
+
+              <div className="crew-empty-state">
+
+                <div className="empty-icon">
+                  ♧
+                </div>
+
+                <h3>No connections yet</h3>
+
+                <p>
+                  Your connected organizers and professionals
+                  will appear here.
+                </p>
+
+              </div>
+
+            </section>
+          )}
+
+          {/* ================= TEAM ================= */}
+
+          {activeSection === "team" && (
+            <section className="crew-section">
+
+              <div className="crew-section-heading">
+                <h2>Selected Team</h2>
+              </div>
+
+              <div className="crew-empty-state">
+
+                <div className="empty-icon">
+                  ♟
+                </div>
+
+                <h3>No team members selected</h3>
+
+                <p>
+                  Professionals selected for your events
+                  will appear here.
+                </p>
+
+              </div>
+
+            </section>
+          )}
+
+          {/* ================= MESSAGES ================= */}
+
+          {activeSection === "chat" && (
+            <section className="crew-section">
+
+              <div className="crew-chat">
+
+                <div className="crew-chat-sidebar">
+
+                  <h3>Messages</h3>
+
+                  <button
+                    type="button"
+                    className="crew-chat-person"
+                    onClick={() => setMessage("Chat selected: Aarav Rao")}
+                  >
+
+                    <div className="crew-person-avatar small">
+                      AR
+                    </div>
+
+                    <div>
+                      <strong>Aarav Rao</strong>
+                      <span>Event Coordinator</span>
+                    </div>
+
+                  </button>
+
+                  <button
+                    type="button"
+                    className="crew-chat-person"
+                    onClick={() => setMessage("Chat selected: Neha Singh")}
+                  >
+
+                    <div className="crew-person-avatar small">
+                      NS
+                    </div>
+
+                    <div>
+                      <strong>Neha Singh</strong>
+                      <span>Hospitality Professional</span>
+                    </div>
+
+                  </button>
+
+                </div>
+
+                <div className="crew-chat-window">
+
+                  <div className="crew-chat-header">
+                    Messages
+                  </div>
+
+                  <div className="crew-chat-empty">
+                    Select a conversation to start messaging.
+                  </div>
+
+                </div>
+
+              </div>
+
+            </section>
+          )}
+
+          {/* ================= ATTENDANCE ================= */}
+
+          {activeSection === "attendance" && (
+            <section className="crew-section">
+
+              <div className="crew-stats-grid">
+
+                <div className="crew-stat-card">
+                  <div>
+                    <span>Assigned</span>
+                    <strong>85</strong>
+                  </div>
+                </div>
+
+                <div className="crew-stat-card">
+                  <div>
+                    <span>Present</span>
+                    <strong>78</strong>
+                  </div>
+                </div>
+
+                <div className="crew-stat-card">
+                  <div>
+                    <span>Absent</span>
+                    <strong>4</strong>
+                  </div>
+                </div>
+
+                <div className="crew-stat-card">
+                  <div>
+                    <span>Late</span>
+                    <strong>3</strong>
+                  </div>
+                </div>
+
+              </div>
+
+              <div className="crew-table-card">
+
+                <table>
+
+                  <thead>
+                    <tr>
+                      <th>Professional</th>
+                      <th>Role</th>
+                      <th>Attendance</th>
+                      <th>Check-in</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+
+                    <tr>
+                      <td>Aarav Rao</td>
+                      <td>Event Coordinator</td>
+                      <td>
+                        <span className="crew-status">
+                          Present
+                        </span>
+                      </td>
+                      <td>08:45 AM</td>
+                    </tr>
+
+                    <tr>
+                      <td>Neha Singh</td>
+                      <td>Hospitality</td>
+                      <td>
+                        <span className="crew-status late">
+                          Late
+                        </span>
+                      </td>
+                      <td>09:20 AM</td>
+                    </tr>
+
+                  </tbody>
+
+                </table>
+
+              </div>
+
+            </section>
+          )}
+
+          {/* ================= PAYMENTS ================= */}
+
+          {activeSection === "payments" && (
+            <section className="crew-section">
+
+              <div className="crew-stats-grid">
+
+                <div className="crew-stat-card">
+                  <div>
+                    <span>Total Budget</span>
+                    <strong>₹2.4L</strong>
+                  </div>
+                </div>
+
+                <div className="crew-stat-card">
+                  <div>
+                    <span>Paid</span>
+                    <strong>₹1.6L</strong>
+                  </div>
+                </div>
+
+                <div className="crew-stat-card">
+                  <div>
+                    <span>Remaining</span>
+                    <strong>₹80K</strong>
+                  </div>
+                </div>
+
+                <div className="crew-stat-card">
+                  <div>
+                    <span>Workers</span>
+                    <strong>85</strong>
+                  </div>
+                </div>
+
+              </div>
+
+              <div className="crew-table-card">
+
+                <table>
+
+                  <thead>
+                    <tr>
+                      <th>Professional</th>
+                      <th>Amount</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+
+                    <tr>
+                      <td>Aarav Rao</td>
+                      <td>₹3,500</td>
+                      <td>
+                        <span className="crew-status">
+                          Paid
+                        </span>
+                      </td>
+                    </tr>
+
+                    <tr>
+                      <td>Neha Singh</td>
+                      <td>₹2,500</td>
+                      <td>
+                        <span className="crew-status pending">
+                          Pending
+                        </span>
+                      </td>
+                    </tr>
+
+                  </tbody>
+
+                </table>
+
+              </div>
+
+            </section>
+          )}
+
+        </div>
+
+      </main>
+
+    </div>
+  );
+}
+
+export default OrganizerDashboard;
